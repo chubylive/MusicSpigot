@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_content"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".MainActivity">
+
+    <android.support.design.widget.AppBarLayout
+        android:id="@+id/appbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/appbar_padding_top"
+        android:theme="@style/AppTheme.AppBarOverlay">
+
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:layout_weight="1"
+            android:background="?attr/colorPrimary"
+            app:layout_scrollFlags="scroll|enterAlways"
+            app:popupTheme="@style/AppTheme.PopupOverlay"
+            app:title="@string/app_name">
+
+        </android.support.v7.widget.Toolbar>
+
+        <android.support.design.widget.TabLayout
+            android:id="@+id/tabs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingLeft="5dp"
+            app:tabMode="scrollable">
+
+            <android.support.design.widget.TabItem
+                android:id="@+id/tabItem"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_text_1" />
+
+            <android.support.design.widget.TabItem
+                android:id="@+id/tabItem2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_text_2" />
+
+            <android.support.design.widget.TabItem
+                android:id="@+id/tabItem3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_text_3" />
+
+            <android.support.design.widget.TabItem
+                android:id="@+id/tabItem4"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/tab_text_4" />
+
+        </android.support.design.widget.TabLayout>
+    </android.support.design.widget.AppBarLayout>
+
+    <android.support.v4.view.ViewPager
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <android.support.constraint.ConstraintLayout
+        android:id="@+id/frameLayout"
+        android:layout_width="match_parent"
+
+        android:layout_height="375dp">
+
+        <Button
+            android:id="@+id/prevTrack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onSkipPreviousButtonClicked"
+            android:text="prev"
+            app:layout_constraintBaseline_toBaselineOf="@+id/playPauseTrack"
+            app:layout_constraintEnd_toStartOf="@+id/playPauseTrack"
+            app:layout_constraintHorizontal_chainStyle="spread_inside"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <Button
+            android:id="@+id/playPauseTrack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="164dp"
+            android:onClick="onPlayPauseButtonClicked"
+            android:text="play"
+            app:layout_constraintEnd_toStartOf="@+id/nextTrack"
+            app:layout_constraintStart_toEndOf="@+id/prevTrack"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <Button
+            android:id="@+id/nextTrack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="onSkipNextButtonClicked"
+            android:text="next"
+            app:layout_constraintBaseline_toBaselineOf="@+id/playPauseTrack"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/playPauseTrack" />
+
+        <Button
+            android:id="@+id/switch1"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_marginStart="148dp"
+            android:layout_marginLeft="148dp"
+            android:layout_marginTop="49dp"
+            android:layout_marginEnd="145dp"
+            android:layout_marginRight="145dp"
+            android:layout_marginBottom="66dp"
+            android:text="Activate"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/playPauseTrack" />
+    </android.support.constraint.ConstraintLayout>
+
+
+</android.support.design.widget.CoordinatorLayout>
