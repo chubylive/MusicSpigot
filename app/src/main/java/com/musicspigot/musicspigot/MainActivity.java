@@ -1,5 +1,6 @@
 package com.musicspigot.musicspigot;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
@@ -41,12 +42,13 @@ import com.spotify.protocol.types.PlayerState;
 import com.spotify.protocol.types.Repeat;
 import com.spotify.protocol.types.Track;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity  {
 
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
@@ -61,11 +63,14 @@ public class MainActivity extends AppCompatActivity {
     private SectionsPagerAdapter mSectionsPagerAdapter;
     private static final String CLIENT_ID = "28f294f65e454bc39194baf504a1a4da";
     private static final String REDIRECT_URI = "MusicSpigot://callback";
-    private SpotifyAppRemote mSpotifyAppRemote;
     private final ErrorCallback mErrorCallback = throwable -> logError(throwable, "Boom!");
-    private static HashMap<String, ToSkipToWait> modeMap = new HashMap<String, ToSkipToWait>();
-    private String name = "";
-    Timer timer = new Timer();
+    public static HashMap<String, ToSkipToWait> modeMap = new HashMap<String, ToSkipToWait>();
+
+    public enum OpMode {STEADY, RANDOM, RAMP_UP, RAMP_DOWN, DISABLED}
+    public static boolean active = false;
+    public static OpMode currOpMode = OpMode.DISABLED;
+    public static OpMode activeOpMode = OpMode.DISABLED;
+    public static TimerTask currTimerTask;
 
     Subscription<PlayerState> mPlayerStateSubscription;
     Subscription<PlayerContext> mPlayerContextSubscription;
@@ -75,30 +80,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private ViewPager mViewPager;
     Button prevTrack, playPauseTrack, nextTrack;
-    private final Subscription.EventCallback<PlayerState> mPlayerStateEventCallback = new Subscription.EventCallback<PlayerState>() {
-        @Override
-        public void onEvent(PlayerState playerState) {
-            Log.i(TAG + "  " + playerState.track.name, ": my playerstart: " + playerState.track.duration + ": " +  playerState.playbackPosition);
 
-//            if(!name.equals(playerState.track.name)){
-//
-//                Log.i(TAG + "  " + playerState.track.name, ": my playerstart: " + playerState.track.duration + ": " +  playerState.playbackPosition);
-//                Log.i(TAG + "  " + playerState.track.name,instance.toString());
-//                if(instance.toWait()){
-//                    mSpotifyAppRemote.getPlayerApi().pause();
-//                    //schedule wait to play
-//                    TimerTask resumePlay = new ResumePlayTask( mSpotifyAppRemote.getPlayerApi());
-//                    //multiply by 1000 to get milli-seconds
-//                    timer.schedule(resumePlay, instance.getWaitTimeInSeconds() * 1000);
-//                    timer.cancel();
-//
-//                }
-//                name = playerState.track.name;
-//            }
-
-
-            }
-    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,66 +113,19 @@ public class MainActivity extends AppCompatActivity {
         nextTrack = findViewById(R.id.nextTrack);
         playPauseTrack = findViewById(R.id.playPauseTrack);
 
+        startService(new Intent(this, ToSkipToPauseService.class));
+
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        ConnectionParams connectionParams =
-                new ConnectionParams.Builder(CLIENT_ID)
-                        .setRedirectUri(REDIRECT_URI)
-                        .showAuthView(true)
-                        .build();
-
-        SpotifyAppRemote.connect(this, connectionParams,
-                new Connector.ConnectionListener() {
-
-                    @Override
-                    public void onConnected(SpotifyAppRemote spotifyAppRemote) {
-                        mSpotifyAppRemote = spotifyAppRemote;
-                        Log.d("MainActivity", "Connected! Yay!");
-                        //subscribe to events
-                        if (mPlayerStateSubscription != null && !mPlayerStateSubscription.isCanceled()) {
-                            mPlayerStateSubscription.cancel();
-                            mPlayerStateSubscription = null;
-                        }
-
-
-                        mPlayerStateSubscription = (Subscription<PlayerState>) mSpotifyAppRemote.getPlayerApi()
-                                .subscribeToPlayerState()
-                                .setEventCallback(mPlayerStateEventCallback)
-                                .setLifecycleCallback(new Subscription.LifecycleCallback() {
-                                    @Override
-                                    public void onStart() {
-                                        logMessage("Event: start");
-                                    }
-
-                                    @Override
-                                    public void onStop() {
-                                        logMessage("Event: end");
-                                    }
-                                })
-                                .setErrorCallback(throwable -> {
-                                    logError(throwable, "Subscribed to PlayerContext failed!");
-                                });
-                        // Now you can start interacting with App Remote
-//                        connected();
-                    }
-
-                    @Override
-                    public void onFailure(Throwable throwable) {
-                        Log.e("MainActivity", throwable.getMessage(), throwable);
-
-                        // Something went wrong when attempting to connect! Handle errors here
-                    }
-                });
 
 
     }
 
     protected void onStop() {
         super.onStop();
-        SpotifyAppRemote.disconnect(mSpotifyAppRemote);
 //        onDisconnected();
     }
 
@@ -220,6 +155,7 @@ public class MainActivity extends AppCompatActivity {
      * A placeholder fragment containing a simple view.
      */
     public static class PlaceholderFragment extends Fragment {
+
         /**
          * The fragment argument representing the section number for this
          * fragment.
@@ -264,6 +200,7 @@ public class MainActivity extends AppCompatActivity {
             final TextView infoOn;
             final TextView counts;
             if (mode.equals("STEADY")) {
+
                 rootView = inflater.inflate(R.layout.steady_page, container, false);
                 counts = rootView.findViewById(R.id.countSteady);
                 infoOn = rootView.findViewById(R.id.infoSteady);
@@ -298,10 +235,10 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.decBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        }else{
+                        } else {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
 
                         }
@@ -311,10 +248,10 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.incBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        }else{
+                        } else {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
 
                         }
@@ -322,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
                 });
 
             } else if (mode.equals("RANDOM")) {
+
                 rootView = inflater.inflate(R.layout.random_page, container, false);
                 counts = rootView.findViewById(R.id.countRandom);
                 infoOn = rootView.findViewById(R.id.infoRandom);
@@ -369,13 +307,13 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.decBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
                         }
 
@@ -385,18 +323,19 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.incBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
                         }
                     }
                 });
             } else if (mode.equals("RAMP UP")) {
+
                 rootView = inflater.inflate(R.layout.ramp_up_page, container, false);
                 counts = rootView.findViewById(R.id.countRampUp);
                 infoOn = rootView.findViewById(R.id.infoRampUp);
@@ -444,15 +383,15 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.decBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP) {
                             counts.setText(skipInfo.getChangeStep() + "");
                         }
 
@@ -462,20 +401,21 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.incBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP) {
                             counts.setText(skipInfo.getChangeStep() + "");
                         }
                     }
                 });
             } else if (mode.equals("RAMP DOWN")) {
+
                 rootView = inflater.inflate(R.layout.ramp_down_page, container, false);
                 counts = rootView.findViewById(R.id.countRampDown);
                 infoOn = rootView.findViewById(R.id.infoRampDown);
@@ -522,15 +462,15 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.decBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP) {
                             counts.setText(skipInfo.getChangeStep() + "");
                         }
                     }
@@ -539,15 +479,15 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(View v) {
                         skipInfo.incBaseOnChangeState();
-                        if(skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME){
+                        if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MAX_TIME) {
                             counts.setText(skipInfo.getMaxWaitTime() + "");
 
-                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_MIN_TIME) {
                             counts.setText(skipInfo.getMinWaitTime() + "");
 
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_NUM_TILL_SKIP) {
                             counts.setText(skipInfo.getNumToSkipWait() + "");
-                        }else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP){
+                        } else if (skipInfo.getChangeState() == ToSkipToWait.ChangeState.CHG_STEP) {
                             counts.setText(skipInfo.getChangeStep() + "");
                         }
                     }
@@ -588,14 +528,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void onPlayPauseButtonClicked(View view) {
-        mSpotifyAppRemote.getPlayerApi().getPlayerState().setResultCallback(playerState -> {
+        ToSkipToPauseService.mSpotifyAppRemote.getPlayerApi().getPlayerState().setResultCallback(playerState -> {
             if (playerState.isPaused) {
-                mSpotifyAppRemote.getPlayerApi()
+                ToSkipToPauseService.mSpotifyAppRemote.getPlayerApi()
                         .resume()
                         .setResultCallback(empty -> logMessage("Play current track successful"))
                         .setErrorCallback(mErrorCallback);
             } else {
-                mSpotifyAppRemote.getPlayerApi()
+                ToSkipToPauseService.mSpotifyAppRemote.getPlayerApi()
                         .pause()
                         .setResultCallback(empty -> logMessage("Pause successful"))
                         .setErrorCallback(mErrorCallback);
@@ -603,15 +543,52 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    public void onActivateButtonClicked(View view) {
+        //cancel timer
+        if (currTimerTask != null) {
+            currTimerTask.cancel();
+        }
+        //set active flag to mode
+        active = true;
+        if( mViewPager.getCurrentItem() == 0){
+            activeOpMode = OpMode.STEADY;
+        }else if ( mViewPager.getCurrentItem() == 1){
+            activeOpMode = OpMode.RANDOM;
+        }else if ( mViewPager.getCurrentItem() == 2){
+            activeOpMode = OpMode.RAMP_UP;
+        }else if ( mViewPager.getCurrentItem() == 3){
+            activeOpMode = OpMode.RAMP_DOWN;
+        }
+    for (ToSkipToWait obj : modeMap.values()){
+            obj.setCountTillSkipWait(0);
+    }
+        Log.i(TAG, "activeMode: : " + activeOpMode);
+
+
+    }
+
+    public void onDeActivateButtonClicked(View view) {
+        //cancel timer
+        if (currTimerTask != null) {
+            currTimerTask.cancel();
+        }        //set active flag to mode NA
+        active = false;
+        activeOpMode = OpMode.DISABLED;
+
+        Log.i(TAG, "activeMode: : " + activeOpMode);
+
+
+    }
+
     public void onSkipPreviousButtonClicked(View view) {
-        mSpotifyAppRemote.getPlayerApi()
+        ToSkipToPauseService.mSpotifyAppRemote.getPlayerApi()
                 .skipPrevious()
                 .setResultCallback(empty -> logMessage("Skip previous successful"))
                 .setErrorCallback(mErrorCallback);
     }
 
     public void onSkipNextButtonClicked(View view) {
-        mSpotifyAppRemote.getPlayerApi()
+        ToSkipToPauseService.mSpotifyAppRemote.getPlayerApi()
                 .skipNext()
                 .setResultCallback(data -> {
                     logMessage("Skip next successful");

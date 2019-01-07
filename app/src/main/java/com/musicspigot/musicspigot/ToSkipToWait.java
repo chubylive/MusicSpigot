@@ -5,15 +5,19 @@ import java.util.Random;
 
 public class ToSkipToWait implements Serializable {
     private int countTillSkipWait;
-    private  int numToSkipWait;
+    private int numToSkipWait;
     private int maxWaitTime;
     private int minWaitTime;
     private int changeStep;
 
 
-    public enum SkipState {RAMP_UP, RAMP_DOWN, STEADY, RANDOM
+    public enum SkipState {
+        RAMP_UP, RAMP_DOWN, STEADY, RANDOM
     }
-    public enum ChangeState {CHG_MAX_TIME, CHG_MIN_TIME, CHG_STEP, CHG_NUM_TILL_SKIP};
+
+    public enum ChangeState {CHG_MAX_TIME, CHG_MIN_TIME, CHG_STEP, CHG_NUM_TILL_SKIP}
+
+    ;
     private SkipState skipState;
 
 
@@ -27,6 +31,7 @@ public class ToSkipToWait implements Serializable {
         this.skipState = skipState;
         this.countTillSkipWait = 0;
     }
+
     //steady state
     public ToSkipToWait(int numToSkipWait, int maxWaitTime, SkipState skipState) {
         this.numToSkipWait = numToSkipWait;
@@ -34,6 +39,7 @@ public class ToSkipToWait implements Serializable {
         this.skipState = skipState;
         this.countTillSkipWait = 0;
     }
+
     //random state
     public ToSkipToWait(int numToSkipWait, int maxWaitTime, int minWaitTime, SkipState skipState) {
         this.numToSkipWait = numToSkipWait;
@@ -42,6 +48,7 @@ public class ToSkipToWait implements Serializable {
         this.skipState = skipState;
         this.countTillSkipWait = 0;
     }
+
     //ramp up/down
     public ToSkipToWait(int numToSkipWait, int maxWaitTime, SkipState skipState, int changeStep) {
         this.numToSkipWait = numToSkipWait;
@@ -55,7 +62,7 @@ public class ToSkipToWait implements Serializable {
         return countTillSkipWait;
     }
 
-    private void setCountTillSkipWait(int countTillSkipWait) {
+    public void setCountTillSkipWait(int countTillSkipWait) {
         this.countTillSkipWait = countTillSkipWait;
     }
 
@@ -107,9 +114,9 @@ public class ToSkipToWait implements Serializable {
         this.changeState = changeState;
     }
 
-    public boolean toWait(){
+    public boolean toWait() {
         boolean wait = false;
-        if(countTillSkipWait >= numToSkipWait){
+        if (countTillSkipWait >= numToSkipWait) {
             wait = true;
             countTillSkipWait = 0;
         }
@@ -117,17 +124,19 @@ public class ToSkipToWait implements Serializable {
         return wait;
     }
 
-    public int getWaitTimeInSeconds(){
+    public int getWaitTimeInSeconds() {
         int waitTime = maxWaitTime;
 
         //every request modifies the the class attribuite base on state
-        switch (skipState){
-
+        switch (skipState) {
             case RAMP_UP:
-                maxWaitTime = maxWaitTime - changeStep;
+                maxWaitTime = maxWaitTime + changeStep;
                 break;
             case RAMP_DOWN:
                 maxWaitTime = maxWaitTime - changeStep;
+                if (maxWaitTime < 0) {
+                    maxWaitTime = 0;
+                }
                 break;
             case STEADY:
                 break;
@@ -140,22 +149,22 @@ public class ToSkipToWait implements Serializable {
     }
 
     public void decBaseOnChangeState() {
-        if (changeState == ChangeState.CHG_NUM_TILL_SKIP){
+        if (changeState == ChangeState.CHG_NUM_TILL_SKIP) {
             numToSkipWait--;
-            if (numToSkipWait <= 0){
-                numToSkipWait =0;
+            if (numToSkipWait <= 0) {
+                numToSkipWait = 0;
             }
-        }else if (changeState == ChangeState.CHG_MAX_TIME){
+        } else if (changeState == ChangeState.CHG_MAX_TIME) {
             maxWaitTime--;
-            if(maxWaitTime <= 0){
+            if (maxWaitTime <= 0) {
                 maxWaitTime = 0;
             }
-        }else if (changeState == ChangeState.CHG_MIN_TIME) {
+        } else if (changeState == ChangeState.CHG_MIN_TIME) {
             minWaitTime--;
             if (minWaitTime <= 0) {
                 minWaitTime = 0;
             }
-        }else if (changeState == ChangeState.CHG_STEP) {
+        } else if (changeState == ChangeState.CHG_STEP) {
             changeStep--;
             if (changeStep <= 0) {
                 changeStep = 0;
@@ -164,16 +173,16 @@ public class ToSkipToWait implements Serializable {
     }
 
     public void incBaseOnChangeState() {
-        if (changeState == ChangeState.CHG_NUM_TILL_SKIP){
+        if (changeState == ChangeState.CHG_NUM_TILL_SKIP) {
             numToSkipWait++;
 
-        }else if (changeState == ChangeState.CHG_MAX_TIME){
+        } else if (changeState == ChangeState.CHG_MAX_TIME) {
             maxWaitTime++;
 
-        }else if (changeState == ChangeState.CHG_MIN_TIME) {
+        } else if (changeState == ChangeState.CHG_MIN_TIME) {
             minWaitTime++;
 
-        }else if (changeState == ChangeState.CHG_STEP) {
+        } else if (changeState == ChangeState.CHG_STEP) {
             changeStep++;
 
         }
